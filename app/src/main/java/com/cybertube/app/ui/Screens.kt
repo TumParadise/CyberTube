@@ -233,7 +233,7 @@ class FeedVM : ViewModel() {
                 if (!added) break
                 i++
             }
-            items = out
+            items = out.distinctBy { it.url }
             loading = false
         }
     }

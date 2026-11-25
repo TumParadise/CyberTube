@@ -70,5 +70,8 @@ dependencies {
     implementation("io.reactivex.rxjava3:rxandroid:3.0.2")
 
     // YouTube extraction engine (same version the NewPipe 0.29.3 source uses)
+    implementation("androidx.webkit:webkit:1.12.1") // needed by PoTokenWebView (1.12.x works with compileSdk 35)
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.27.1")
+    // nanojson: the extractor does not expose it at compile time (NewPipe 0.29.3 declares it explicitly too)
+    implementation("com.github.TeamNewPipe:nanojson:e9d656ddb49a412a5a0a5d5ef20ca7ef09549996")
 }

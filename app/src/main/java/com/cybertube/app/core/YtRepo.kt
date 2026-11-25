@@ -80,7 +80,7 @@ object YtRepo {
     )
 
     private fun streamItems(list: List<Any?>) =
-        list.filterIsInstance<StreamInfoItem>().map(::toItem)
+        list.filterIsInstance<StreamInfoItem>().map(::toItem).distinctBy { it.url } // LazyColumn keys must be unique
 
     // ---------- search ----------
     private fun searchHandler(q: String) = yt.searchQHFactory.fromQuery(q, listOf("videos"), "")
