@@ -1,22 +1,45 @@
-name: Build CyberTube APK
+name: Build APK from ZIP
+
 on:
   push:
+    paths:
+      - '**.zip'
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Find and unzip the project
+        run: |
+          ZIP=$(git diff-tree --no-commit-id --name-only -r HEAD | grep -i '\.zip$' | head -1 || true)
+          if [ -z "$ZIP" ]; then ZIP=$(find . -maxdepth 2 -iname '*.zip' -not -path './.git/*' | head -1); fi
+          echo "Using zip: $ZIP"
+          [ -n "$ZIP" ] || { echo "No zip found"; exit 1; }
+          mkdir -p /tmp/proj
+          unzip -q -o "$ZIP" -d /tmp/proj
+          ROOT=$(dirname "$(find /tmp/proj -name settings.gradle.kts | head -1)")
+          echo "Project root: $ROOT"
+          echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.9
+          gradle-version: 8.10.2
+
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
+        working-directory: ${{ env.PROJECT_ROOT }}
+        run: gradle assembleDebug --no-daemon
+
       - uses: actions/upload-artifact@v4
         with:
           name: CyberTube-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_ROOT }}/app/build/outputs/apk/debug/*.apk
