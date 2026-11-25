@@ -1,30 +1,46 @@
-# CyberTube
+CyberTube
 
-แอป YouTube สำหรับ Android — UI ใหม่ + ระบบเล่นเขียนเอง (Compose + Media3)
-ใช้ **NewPipeExtractor เฉพาะ YouTube** เป็นตัวดึงข้อมูล ไม่มีบริการอื่น
+แอป YouTube สำหรับ Android — UI ใหม่ + ระบบเล่นเขียนเอง (Compose + Media3) ใช้ NewPipeExtractor เฉพาะ YouTube เป็นตัวดึงข้อมูล ไม่มีบริการอื่น
 
-## ฟีเจอร์ v0.1
-- ค้นหา (พร้อม suggestion) + เลื่อนโหลดต่อ
-- เล่นวิดีโอ: เลือกคุณภาพ (รวมวิดีโอ+เสียงแยกสตรีมถึง 1080p+), ความเร็ว, แตะสองครั้งข้าม ±10 วิ, เต็มจอ
-- เล่นเบื้องหลัง / เฉพาะเสียง (ปุ่มหูฟัง) พร้อมแจ้งเตือนควบคุมเพลง, มินิเพลเยอร์
-- สมัครติดตามช่อง (เก็บในเครื่อง ไม่ต้องล็อกอิน) + ฟีดวิดีโอล่าสุด
-- ประวัติการดู
+ฟีเจอร์ v0.1
 
-## v0.2.0 (เฟส 1)
-- แก้ player ชนแถบสถานะ Android, เมนูล่างอยู่ทุกหน้า (รวมหน้าเล่นวิดีโอ) และเล็กลง
-- seek bar บางลง + แสดงส่วนที่โหลดล่วงหน้า, buffer 30–120 วิ
-- หน้า Settings: ความคมชัดเริ่มต้น, About (ผู้สร้าง Tum), open source licenses
-- แก้ description ที่แสดงแท็ก HTML และวันที่ที่แสดงเป็น ISO
+ค้นหา (พร้อม suggestion) + เลื่อนโหลดต่อ
+เล่นวิดีโอ: เลือกคุณภาพ (รวมวิดีโอ+เสียงแยกสตรีมถึง 1080p+), ความเร็ว, แตะสองครั้งข้าม ±10 วิ, เต็มจอ
+เล่นเบื้องหลัง / เฉพาะเสียง (ปุ่มหูฟัง) พร้อมแจ้งเตือนควบคุมเพลง, มินิเพลเยอร์
+สมัครติดตามช่อง (เก็บในเครื่อง ไม่ต้องล็อกอิน) + ฟีดวิดีโอล่าสุด
+ประวัติการดู
 
-## โครงสร้าง
-- `core/` YtDownloader (OkHttp), YtRepo (search/stream/channel), Store (subs/history)
-- `player/` PlayerHolder (ExoPlayer ตัวเดียวทั้งแอป), PlaybackService (MediaSession), datasource/YoutubeHttpDataSource (คัดจาก NewPipe)
-- `potoken/` PoToken provider (คัดจาก NewPipe — จำเป็นให้ YouTube เล่นได้เสถียร)
-- `ui/` Theme (Cyber), Components, Screens, PlayerScreen
+v0.4.0
 
-## Build
-push ขึ้น GitHub → Actions → artifact `CyberTube-APK`
+แคชวิดีโอลงเครื่อง (Media3 SimpleCache): ดูซ้ำ/เลื่อนย้อนกลับไม่ต้องโหลดใหม่, เก็บผลดึงข้อมูลวิดีโอ 30 นาที
+ลบประวัติการดูและแคชที่ไม่ได้ใช้เกิน 7 วันอัตโนมัติ, ตั้งขนาดแคช/ล้างแคชได้ในตั้งค่า
+ตัดรายการไลบรารี Apache-2.0 ออกจากหน้าตั้งค่า (คง NewPipe/NewPipeExtractor GPL-3.0)
 
-## License
-โค้ดส่วนที่คัดจาก NewPipe และ NewPipeExtractor เป็น GPL-3.0 → แอปนี้ต้องเผยแพร่ภายใต้ GPL-3.0 ด้วย
-(ใช้ส่วนตัวไม่มีปัญหา)
+v0.3.0 (เฟส 2)
+
+ย่อวิดีโอเป็นหน้าต่างเล็กลอยลากได้ในแอป (กดลูกศรลงที่มุมซ้ายบน), แตะเพื่อขยายกลับ
+แจ้งเตือนมีปุ่มก่อนหน้า/ถัดไป (คิวจากวิดีโอแนะนำ + ประวัติที่เล่น), ปุ่มก่อนหน้า/ถัดไปในหน้าเล่น
+เล่นวิดีโอถัดไปอัตโนมัติ (ปิดได้ในตั้งค่า)
+ข้อความทั้งหมดเป็นภาษาไทย (ยอดดู, วันที่, เมนู, ตั้งค่า)
+
+v0.2.0 (เฟส 1)
+
+แก้ player ชนแถบสถานะ Android, เมนูล่างอยู่ทุกหน้า (รวมหน้าเล่นวิดีโอ) และเล็กลง
+seek bar บางลง + แสดงส่วนที่โหลดล่วงหน้า, buffer 30–120 วิ
+หน้า Settings: ความคมชัดเริ่มต้น, About (ผู้สร้าง Tum), open source licenses
+แก้ description ที่แสดงแท็ก HTML และวันที่ที่แสดงเป็น ISO
+
+โครงสร้าง
+
+ core/  YtDownloader (OkHttp), YtRepo (search/stream/channel), Store (subs/history)
+ player/  PlayerHolder (ExoPlayer ตัวเดียวทั้งแอป), PlaybackService (MediaSession), datasource/YoutubeHttpDataSource (คัดจาก NewPipe)
+ potoken/  PoToken provider (คัดจาก NewPipe — จำเป็นให้ YouTube เล่นได้เสถียร)
+ ui/  Theme (Cyber), Components, Screens, PlayerScreen
+
+Build
+
+push ขึ้น GitHub → Actions → artifact  CyberTube-APK 
+
+License
+
+โค้ดส่วนที่คัดจาก NewPipe และ NewPipeExtractor เป็น GPL-3.0 → แอปนี้ต้องเผยแพร่ภายใต้ GPL-3.0 ด้วย (ใช้ส่วนตัวไม่มีปัญหา)
