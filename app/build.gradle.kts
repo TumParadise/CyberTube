@@ -59,6 +59,10 @@ dependencies {
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 
+    // Google Identity Services authorization. This uses the Android OAuth
+    // client registered for com.cybertube.app and its signing certificate.
+    implementation("com.google.android.gms:play-services-auth:22.0.0")
+
     val media3 = "1.4.1"
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-exoplayer-hls:$media3")
