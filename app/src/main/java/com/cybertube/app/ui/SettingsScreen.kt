@@ -146,9 +146,25 @@ fun SettingsScreen() {
                 )
             }
         }
+        // บัญชี YouTube
+        item {
+              Spacer(Modifier.height(12.dp))
+              SectionLabel("// บัญชี YouTube")
+        }
 
-        item { Spacer(Modifier.height(12.dp)); SectionLabel("// แคชวิดีโอ") }
-        item { CacheSection() }
+        item {
+              YouTubeAccountSection()
+        }
+
+        // แคชวิดีโอ
+        item {
+              Spacer(Modifier.height(12.dp))
+              SectionLabel("// แคชวิดีโอ")
+        }
+
+        item {
+               CacheSection()
+        }
 
         item { Spacer(Modifier.height(12.dp)); SectionLabel("// เกี่ยวกับแอป") }
         item {
@@ -197,7 +213,130 @@ fun SettingsScreen() {
             }
         }
         item { Spacer(Modifier.height(24.dp)) }
+         } // ปิด LazyColumn
+         } // ปิด Box
+     } // ปิด SettingsScreen()
+    
+     @Composable
+     private fun YouTubeAccountSection() {
+     val context = LocalContext.current
+
+     val environment = remember {
+        MicroGEnvironment.inspect(context)
     }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+    ) {
+        Text(
+            "เชื่อมต่อบัญชี Google",
+            color = Cy.text,
+            style = MaterialTheme.typography.titleSmall,
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        Text(
+            "ใช้บัญชี YouTube เพื่อเข้าถึงโปรไฟล์ เพลย์ลิสต์ " +
+                "และช่องที่ติดตาม โดยระบบเล่นของ CyberTube " +
+                "ยังทำงานแยกจากบัญชี",
+            color = Cy.dim,
+            fontSize = 11.sp,
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "microG Services",
+                    color = Cy.text,
+                    fontSize = 13.sp,
+                )
+
+                Text(
+                    if (environment.servicesInstalled) {
+                        "พบระบบ Google Services ที่รองรับ"
+                    } else {
+                        "ไม่พบระบบ Google Services ที่รองรับ"
+                    },
+                    color = Cy.dim,
+                    fontSize = 11.sp,
+                )
+            }
+
+            Text(
+                if (environment.servicesInstalled) "พร้อม" else "ไม่พบ",
+                color = if (environment.servicesInstalled) {
+                    Cy.green
+                } else {
+                    Cy.dim
+                },
+                fontSize = 12.sp,
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "microG Companion",
+                color = Cy.text,
+                fontSize = 13.sp,
+                modifier = Modifier.weight(1f),
+            )
+
+            Text(
+                if (environment.companionInstalled) "พบแล้ว" else "ไม่พบ",
+                color = if (environment.companionInstalled) {
+                    Cy.green
+                } else {
+                    Cy.dim
+                },
+                fontSize = 12.sp,
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        if (environment.ready) {
+            Text(
+                "อุปกรณ์พร้อมสำหรับขั้นตอนเชื่อมต่อบัญชี",
+                color = Cy.green,
+                fontSize = 12.sp,
+            )
+
+            Spacer(Modifier.height(6.dp))
+
+            OutlinedButton(
+                onClick = {
+                    // ขั้นต่อไปจะเชื่อม AccountProvider / Google authorization
+                },
+                border = BorderStroke(1.dp, Cy.green),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Cy.green
+                ),
+            ) {
+                Text(
+                    "เชื่อมต่อบัญชี Google",
+                    fontSize = 12.sp,
+                )
+            }
+        } else {
+            Text(
+                "ติดตั้งและตั้งค่า microG ก่อนเชื่อมต่อบัญชี Google",
+                color = Cy.dim,
+                fontSize = 11.sp,
+            )
+        }
     }
 }
 
