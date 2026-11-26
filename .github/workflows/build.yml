@@ -1,45 +1,40 @@
-name: Build APK from ZIP
+name: Build CyberTube APK
 
 on:
   push:
-    paths:
-      - '**.zip'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Find and unzip the project
-        run: |
-          ZIP=$(git diff-tree --no-commit-id --name-only -r HEAD | grep -i '\.zip$' | head -1 || true)
-          if [ -z "$ZIP" ]; then ZIP=$(find . -maxdepth 2 -iname '*.zip' -not -path './.git/*' | head -1); fi
-          echo "Using zip: $ZIP"
-          [ -n "$ZIP" ] || { echo "No zip found"; exit 1; }
-          mkdir -p /tmp/proj
-          unzip -q -o "$ZIP" -d /tmp/proj
-          ROOT=$(dirname "$(find /tmp/proj -name settings.gradle.kts | head -1)")
-          echo "Project root: $ROOT"
-          echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
-
-      - uses: actions/setup-java@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.10.2
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
-      - name: Build debug APK
-        working-directory: ${{ env.PROJECT_ROOT }}
-        run: gradle assembleDebug --no-daemon
+      - name: Make Gradle Wrapper executable
+        run: chmod +x ./gradlew
 
-      - uses: actions/upload-artifact@v4
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: CyberTube-APK
-          path: ${{ env.PROJECT_ROOT }}/app/build/outputs/apk/debug/*.apk
+          path: '**/build/outputs/apk/debug/*.apk'
+          if-no-files-found: error
