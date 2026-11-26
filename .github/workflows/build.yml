@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/account-integration-v2
   workflow_dispatch:
 
 jobs:
@@ -47,9 +48,20 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
+      - name: Generate signing report
+        working-directory: ${{ env.PROJECT_ROOT }}
+        run: gradle signingReport --no-daemon | tee signing-report.txt
+
       - name: Build Debug APK
         working-directory: ${{ env.PROJECT_ROOT }}
         run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Upload signing report
+        uses: actions/upload-artifact@v4
+        with:
+          name: CyberTube-Signing-Report
+          path: '${{ env.PROJECT_ROOT }}/signing-report.txt'
+          if-no-files-found: error
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
