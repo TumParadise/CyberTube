@@ -46,7 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cybertube.app.BuildConfig
 import com.cybertube.app.core.Store
-import com.cybertube.app.account.MicroGEnvironment
+import com.cybertube.app.account.AccountState
+import com.cybertube.app.account.MicroGAccountProvider
 
 private data class QOpt(val height: Int, val label: String)
 
@@ -66,8 +67,8 @@ private val qualityOptions = listOf(
 private data class OssLib(val name: String, val license: String, val url: String, val note: String)
 
 private val ossLibs = listOf(
-    OssLib("NewPipeExtractor", "GPL-3.0", "https://github.com/TeamNewPipe/NewPipeExtractor", "ดึงข้อมูลวิดีโอจาก YouTube"),
-    OssLib("NewPipe (ดัดแปลงโค้ดบางส่วน)", "GPL-3.0", "https://github.com/TeamNewPipe/NewPipe", "ระบบ PoToken และตัวดึงสตรีม YouTube"),
+    OssLib("NewPipeExtractor", "GPL-3.0", "https://<scrubbed-url-domain>/TeamNewPipe/NewPipeExtractor", "ดึงข้อมูลวิดีโอจาก YouTube"),
+    OssLib("NewPipe (ดัดแปลงโค้ดบางส่วน)", "GPL-3.0", "https://<scrubbed-url-domain>/TeamNewPipe/NewPipe", "ระบบ PoToken และตัวดึงสตรีม YouTube"),
 )
 
 @Composable
@@ -78,7 +79,6 @@ fun SettingsScreen() {
 
     if (showTeamPicker) TeamPickerDialog(onDismiss = { showTeamPicker = false })
 
-    // The 9:16 artwork is the background of the settings page only; a dark scrim keeps text readable.
     Box(Modifier.fillMaxSize().background(Cy.bg)) {
     Image(
         painter = painterResource(Cy.team.value.bgRes),
@@ -146,25 +146,12 @@ fun SettingsScreen() {
                 )
             }
         }
-        // บัญชี YouTube
-        item {
-              Spacer(Modifier.height(12.dp))
-              SectionLabel("// บัญชี YouTube")
-        }
 
-        item {
-              YouTubeAccountSection()
-        }
+        item { Spacer(Modifier.height(12.dp)); SectionLabel("// บัญชี YouTube") }
+        item { YouTubeAccountSection() }
 
-        // แคชวิดีโอ
-        item {
-              Spacer(Modifier.height(12.dp))
-              SectionLabel("// แคชวิดีโอ")
-        }
-
-        item {
-               CacheSection()
-        }
+        item { Spacer(Modifier.height(12.dp)); SectionLabel("// แคชวิดีโอ") }
+        item { CacheSection() }
 
         item { Spacer(Modifier.height(12.dp)); SectionLabel("// เกี่ยวกับแอป") }
         item {
@@ -213,17 +200,17 @@ fun SettingsScreen() {
             }
         }
         item { Spacer(Modifier.height(24.dp)) }
-         } // ปิด LazyColumn
-         } // ปิด Box
-     } // ปิด SettingsScreen()
-    
-     @Composable
-     private fun YouTubeAccountSection() {
-     val context = LocalContext.current
-
-     val environment = remember {
-        MicroGEnvironment.inspect(context)
     }
+    }
+}
+
+@Composable
+private fun YouTubeAccountSection() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val provider = remember { MicroGAccountProvider() }
+    val environment = remember { provider.environment(context) }
+    var accountState by remember { mutableStateOf(provider.currentState()) }
 
     Column(
         Modifier
@@ -253,30 +240,17 @@ fun SettingsScreen() {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
+                Text("microG Services", color = Cy.text, fontSize = 13.sp)
                 Text(
-                    "microG Services",
-                    color = Cy.text,
-                    fontSize = 13.sp,
-                )
-
-                Text(
-                    if (environment.servicesInstalled) {
-                        "พบระบบ Google Services ที่รองรับ"
-                    } else {
-                        "ไม่พบระบบ Google Services ที่รองรับ"
-                    },
+                    if (environment.servicesInstalled) "พบระบบ Google Services ที่รองรับ"
+                    else "ไม่พบระบบ Google Services ที่รองรับ",
                     color = Cy.dim,
                     fontSize = 11.sp,
                 )
             }
-
             Text(
                 if (environment.servicesInstalled) "พร้อม" else "ไม่พบ",
-                color = if (environment.servicesInstalled) {
-                    Cy.green
-                } else {
-                    Cy.dim
-                },
+                color = if (environment.servicesInstalled) Cy.green else Cy.dim,
                 fontSize = 12.sp,
             )
         }
@@ -287,55 +261,73 @@ fun SettingsScreen() {
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "microG Companion",
-                color = Cy.text,
-                fontSize = 13.sp,
-                modifier = Modifier.weight(1f),
-            )
-
+            Text("microG Companion", color = Cy.text, fontSize = 13.sp, modifier = Modifier.weight(1f))
             Text(
                 if (environment.companionInstalled) "พบแล้ว" else "ไม่พบ",
-                color = if (environment.companionInstalled) {
-                    Cy.green
-                } else {
-                    Cy.dim
-                },
+                color = if (environment.companionInstalled) Cy.green else Cy.dim,
                 fontSize = 12.sp,
             )
         }
 
         Spacer(Modifier.height(10.dp))
 
-        if (environment.ready) {
-            Text(
-                "อุปกรณ์พร้อมสำหรับขั้นตอนเชื่อมต่อบัญชี",
-                color = Cy.green,
-                fontSize = 12.sp,
-            )
-
-            Spacer(Modifier.height(6.dp))
-
-            OutlinedButton(
-                onClick = {
-                    // ขั้นต่อไปจะเชื่อม AccountProvider / Google authorization
-                },
-                border = BorderStroke(1.dp, Cy.green),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Cy.green
-                ),
-            ) {
-                Text(
-                    "เชื่อมต่อบัญชี Google",
-                    fontSize = 12.sp,
-                )
+        when (val state = accountState) {
+            AccountState.SignedOut -> {
+                if (environment.ready) {
+                    Text("อุปกรณ์พร้อมสำหรับขั้นตอนเชื่อมต่อบัญชี", color = Cy.green, fontSize = 12.sp)
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedButton(
+                        onClick = {
+                            accountState = AccountState.Connecting
+                            scope.launch {
+                                accountState = provider.connect(context)
+                            }
+                        },
+                        border = BorderStroke(1.dp, Cy.green),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
+                    ) {
+                        Text("เชื่อมต่อบัญชี Google", fontSize = 12.sp)
+                    }
+                } else {
+                    Text("ติดตั้งและตั้งค่า microG ก่อนเชื่อมต่อบัญชี Google", color = Cy.dim, fontSize = 11.sp)
+                }
             }
-        } else {
-            Text(
-                "ติดตั้งและตั้งค่า microG ก่อนเชื่อมต่อบัญชี Google",
-                color = Cy.dim,
-                fontSize = 11.sp,
-            )
+
+            AccountState.Connecting -> {
+                Text("กำลังเชื่อมต่อบัญชี...", color = Cy.green, fontSize = 12.sp)
+            }
+
+            is AccountState.SignedIn -> {
+                Text(
+                    state.account.displayName ?: state.account.accountName,
+                    color = Cy.green,
+                    fontSize = 13.sp,
+                )
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            accountState = provider.disconnect(context)
+                        }
+                    },
+                    border = BorderStroke(1.dp, Cy.green),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
+                ) {
+                    Text("ออกจากระบบ", fontSize = 12.sp)
+                }
+            }
+
+            is AccountState.Error -> {
+                Text(state.message, color = Cy.dim, fontSize = 11.sp)
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(
+                    onClick = { accountState = AccountState.SignedOut },
+                    border = BorderStroke(1.dp, Cy.green),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
+                ) {
+                    Text("ลองอีกครั้ง", fontSize = 12.sp)
+                }
+            }
         }
     }
 }
@@ -349,7 +341,7 @@ private fun CacheSection() {
     val ctx: Context = LocalContext.current
     val scope = rememberCoroutineScope()
     var used by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(Unit) { used = PlayerHolder.cacheBytes(ctx) } // opens the cache off the main thread
+    LaunchedEffect(Unit) { used = PlayerHolder.cacheBytes(ctx) }
     val cur = Store.cacheMb.intValue
 
     Column(Modifier.padding(horizontal = 12.dp)) {
