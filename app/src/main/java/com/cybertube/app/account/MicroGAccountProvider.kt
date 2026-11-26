@@ -4,7 +4,10 @@ import android.content.Context
 
 /**
  * AccountProvider implementation for a microG-compatible environment.
- * OAuth authorization will be connected in a later step.
+ *
+ * This class deliberately does not collect a Google password and does not
+ * contain credentials in source control. OAuth authorization will be started
+ * only after CyberTube has a valid Android OAuth client configuration.
  */
 class MicroGAccountProvider : AccountProvider {
 
@@ -21,10 +24,18 @@ class MicroGAccountProvider : AccountProvider {
     override suspend fun connect(context: Context): AccountState {
         val env = environment(context)
 
-        state = if (!env.ready) {
-            AccountState.Error("ไม่พบ microG Services ที่พร้อมใช้งาน")
-        } else {
-            AccountState.Error("ระบบ Google authorization ยังไม่ได้เชื่อมต่อ")
+        state = when {
+            !env.ready -> AccountState.Error(
+                "ไม่พบ microG Services ที่พร้อมใช้งาน"
+            )
+
+            !OAuthConfig.isConfigured -> AccountState.Error(
+                "ยังไม่ได้กำหนด OAuth client สำหรับ com.cybertube.app"
+            )
+
+            else -> AccountState.Error(
+                "OAuth พร้อมตั้งค่าแล้ว แต่ authorization flow ยังไม่ได้เชื่อมต่อ"
+            )
         }
 
         return state
