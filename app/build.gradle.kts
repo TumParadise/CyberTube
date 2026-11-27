@@ -16,8 +16,8 @@ android {
         versionName = "0.5.0"
     }
 
-    // คีย์ลงนามคงที่ (debug) : ทุกรอบ build บน GitHub Actions ได้ SHA-1 เดิม
-    // -> อัปเดตแอปทับของเดิมได้ และใช้ OAuth ของ Google ได้ (คีย์นี้เป็นคีย์ debug สาธารณะ ห้ามใช้กับแอปที่ปล่อยจริง)
+    // คีย์ลงนามคงที่ (debug) : ทุกรอบ build บน GitHub Actions ได้ลายเซ็นเดิม
+    // -> อัปเดตแอปทับของเดิมได้ (คีย์นี้เป็นคีย์ debug สาธารณะ ห้ามใช้กับแอปที่ปล่อยจริง)
     signingConfigs {
         getByName("debug") {
             storeFile = file("cybertube-debug.keystore")
@@ -62,9 +62,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-
-    // Google Identity Services - OAuth authorization
-    implementation("com.google.android.gms:play-services-auth:22.0.0")
 
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))
     implementation("androidx.compose.ui:ui")

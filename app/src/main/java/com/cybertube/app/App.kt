@@ -15,6 +15,7 @@ class App : Application() {
         super.onCreate()
         instance = this
         Store.init(this)
+        com.cybertube.app.account.GoogleAuth.init(this)
         NewPipe.init(YtDownloader(), Localization("en", "US"), ContentCountry("TH"))
         YoutubeStreamExtractor.setPoTokenProvider(PoTokenProviderImpl)
         PlayerHolder.purgeOldCache(this) // drop cached videos unused for 7 days

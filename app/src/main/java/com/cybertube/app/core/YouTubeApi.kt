@@ -75,6 +75,7 @@ object YouTubeApi {
     }
 
     fun describe(e: Throwable): String = when {
+        e is com.cybertube.app.account.GoogleAuth.AuthError -> e.message ?: "เชื่อมต่อบัญชีไม่สำเร็จ"
         e is ApiError && e.code == 401 -> "สิทธิ์หมดอายุ ลองเชื่อมต่อใหม่อีกครั้ง"
         e is ApiError && e.code == 403 ->
             "Google ปฏิเสธ (403): ตรวจว่าเปิด YouTube Data API v3 ในโปรเจกต์แล้ว และโควตายังไม่หมด — ${e.message}"

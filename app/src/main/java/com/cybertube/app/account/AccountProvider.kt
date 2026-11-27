@@ -1,7 +1,5 @@
 package com.cybertube.app.account
 
-import android.content.Context
-
 data class CyberTubeAccount(
     val accountName: String,
     val displayName: String? = null,
@@ -23,16 +21,14 @@ sealed interface AccountState {
 
 interface AccountProvider {
 
-    fun environment(context: Context): MicroGEnvironmentState
-
     fun currentState(): AccountState
 
-    /** เรียกหลัง Google ให้สิทธิ์แล้ว: ดึงชื่อช่องมาแสดงและจำไว้ในเครื่อง */
-    suspend fun signIn(accessToken: String): AccountState
+    /** เรียกหลังผู้ใช้ยืนยันรหัสที่ google.com/device แล้ว: ดึงชื่อช่องมาแสดงและจำไว้ในเครื่อง */
+    suspend fun signIn(): AccountState
 
     /** ดึงรายการช่องที่ติดตามจากบัญชี แล้วเพิ่มเข้า Store (ไม่ซ้ำของเดิม) คืนจำนวนช่องที่เพิ่มใหม่ */
-    suspend fun importSubscriptions(accessToken: String): Result<Int>
+    suspend fun importSubscriptions(): Result<Int>
 
-    /** ออกจากระบบในแอป (ลบข้อมูลบัญชีที่จำไว้ ไม่ลบช่องที่ติดตามแล้ว) */
+    /** ออกจากระบบในแอป (ลบ token และข้อมูลบัญชีที่จำไว้ ไม่ลบช่องที่ติดตามแล้ว) */
     fun disconnect(): AccountState
 }

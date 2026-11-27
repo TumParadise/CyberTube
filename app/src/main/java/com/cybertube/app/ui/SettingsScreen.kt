@@ -48,14 +48,18 @@ import com.cybertube.app.BuildConfig
 import com.cybertube.app.core.Store
 import com.cybertube.app.core.YouTubeApi
 import androidx.compose.foundation.layout.Arrangement
-import android.app.Activity
-import android.content.ContextWrapper
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import com.cybertube.app.account.AccountState
-import com.cybertube.app.account.GoogleAuthorization
-import com.cybertube.app.account.MicroGAccountProvider
+import com.cybertube.app.account.GoogleAccountProvider
+import com.cybertube.app.account.GoogleAuth
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 
 private data class QOpt(val height: Int, val label: String)
 
@@ -212,77 +216,67 @@ fun SettingsScreen() {
     }
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
-
 @Composable
 private fun YouTubeAccountSection() {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val provider = remember { MicroGAccountProvider() }
-    val environment = remember { provider.environment(context) }
+    val uriHandler = LocalUriHandler.current
+    val clipboard = LocalClipboardManager.current
+    val provider = remember { GoogleAccountProvider() }
     var accountState by remember { mutableStateOf(provider.currentState()) }
     var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
-    var pendingImport by remember { mutableStateOf(false) }
+    var code by remember { mutableStateOf<GoogleAuth.DeviceCode?>(null) }
+    var job by remember { mutableStateOf<Job?>(null) }
+    var editClient by remember { mutableStateOf(false) }
+    var idInput by remember { mutableStateOf(GoogleAuth.clientId.value) }
+    var secretInput by remember { mutableStateOf(GoogleAuth.clientSecret.value) }
+    val configured = GoogleAuth.configured
+    val showSetup = !configured || editClient
 
-    // Google ให้สิทธิ์แล้ว -> ดึงชื่อช่อง (และนำเข้าช่องที่ติดตามถ้าผู้ใช้กดนำเข้า)
-    val finish: suspend (String?) -> Unit = { token ->
-        if (token == null) {
-            accountState = AccountState.Error("Google ไม่ส่งสิทธิ์เข้าถึงกลับมา")
-        } else {
-            accountState = provider.signIn(token)
-            if (accountState is AccountState.SignedIn && pendingImport) {
-                status = provider.importSubscriptions(token).fold(
-                    onSuccess = { n -> if (n > 0) "นำเข้าช่องที่ติดตามใหม่ $n ช่อง" else "ไม่มีช่องใหม่ให้นำเข้า (มีครบแล้ว)" },
-                    onFailure = { YouTubeApi.describe(it) },
-                )
+    fun connect() {
+        status = null
+        busy = true
+        job = scope.launch {
+            try {
+                val dc = GoogleAuth.requestDeviceCode()
+                code = dc
+                GoogleAuth.pollForToken(dc)
+                code = null
+                accountState = provider.signIn()
+            } catch (e: CancellationException) {
+                code = null
+                throw e
+            } catch (e: Throwable) {
+                code = null
+                accountState = AccountState.Error(YouTubeApi.describe(e))
+            } finally {
+                busy = false
             }
         }
-        pendingImport = false
-        busy = false
     }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { res ->
-        val activity = context.findActivity()
-        if (activity == null || res.resultCode != Activity.RESULT_OK) {
-            busy = false
-            pendingImport = false
-            status = "ยกเลิกการเชื่อมต่อบัญชี"
-        } else {
-            GoogleAuthorization.resultFromIntent(activity, res.data)
-                .onSuccess { r -> scope.launch { finish(r.accessToken) } }
-                .onFailure { e ->
-                    busy = false
-                    pendingImport = false
-                    accountState = AccountState.Error(GoogleAuthorization.describe(e))
-                }
-        }
-    }
-
-    fun start(doImport: Boolean) {
-        val activity = context.findActivity()
-        if (activity == null) {
-            accountState = AccountState.Error("เปิดหน้าต่างขออนุญาตไม่ได้")
-            return
-        }
-        pendingImport = doImport
-        busy = true
+    fun importSubs() {
         status = null
-        GoogleAuthorization.authorize(
-            activity,
-            onResolutionRequired = { pi -> launcher.launch(IntentSenderRequest.Builder(pi.intentSender).build()) },
-            onAuthorized = { r -> scope.launch { finish(r.accessToken) } },
-            onError = { e ->
-                busy = false
-                pendingImport = false
-                accountState = AccountState.Error(GoogleAuthorization.describe(e))
-            },
-        )
+        busy = true
+        scope.launch {
+            provider.importSubscriptions().fold(
+                onSuccess = { n ->
+                    status = if (n > 0) "นำเข้าช่องที่ติดตามใหม่ $n ช่อง" else "ไม่มีช่องใหม่ให้นำเข้า (มีครบแล้ว)"
+                },
+                onFailure = { e ->
+                    status = YouTubeApi.describe(e)
+                    if (e is GoogleAuth.AuthError && e.fatal) accountState = provider.disconnect()
+                },
+            )
+            busy = false
+        }
     }
+
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Cy.text, unfocusedTextColor = Cy.text, cursorColor = Cy.green,
+        focusedBorderColor = Cy.green, unfocusedBorderColor = Cy.dim,
+        focusedLabelColor = Cy.green, unfocusedLabelColor = Cy.dim,
+    )
 
     Column(
         Modifier
@@ -298,78 +292,105 @@ private fun YouTubeAccountSection() {
         Spacer(Modifier.height(4.dp))
 
         Text(
-            "ใช้บัญชี YouTube เพื่อนำเข้าช่องที่คุณติดตามมาไว้ในแอป " +
-                "ขอสิทธิ์แบบอ่านอย่างเดียว ระบบเล่นของ CyberTube ยังทำงานแยกจากบัญชี",
+            "นำเข้าช่องที่คุณติดตามบน YouTube มาไว้ในแอป ขอสิทธิ์แบบอ่านอย่างเดียว " +
+                "ยืนยันผ่านเบราว์เซอร์ด้วยรหัส ไม่ต้องพึ่ง Google Services ในเครื่อง (ใช้กับ microG ได้) " +
+                "ระบบเล่นของ CyberTube ยังทำงานแยกจากบัญชี",
             color = Cy.dim,
             fontSize = 11.sp,
         )
 
         Spacer(Modifier.height(10.dp))
 
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Google Services / microG", color = Cy.text, fontSize = 13.sp)
-                Text(
-                    if (environment.servicesInstalled) "พบระบบ Google Services ที่รองรับ"
-                    else "ไม่พบระบบ Google Services ที่รองรับ",
-                    color = Cy.dim,
-                    fontSize = 11.sp,
-                )
-            }
+        val dc = code
+        if (showSetup) {
             Text(
-                if (environment.servicesInstalled) "พร้อม" else "ไม่พบ",
-                color = if (environment.servicesInstalled) Cy.green else Cy.dim,
-                fontSize = 12.sp,
+                "ใส่ Client ID / Client Secret ของ OAuth client ประเภท \"TVs and Limited Input devices\" " +
+                    "จาก Google Cloud (ดู SETUP_GOOGLE.md)",
+                color = Cy.dim, fontSize = 11.sp,
             )
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        if (busy) {
-            Text("กำลังเชื่อมต่อบัญชี...", color = Cy.green, fontSize = 12.sp)
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = idInput, onValueChange = { idInput = it },
+                label = { Text("Client ID", fontSize = 11.sp) },
+                singleLine = true, colors = fieldColors, modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = secretInput, onValueChange = { secretInput = it },
+                label = { Text("Client Secret", fontSize = 11.sp) },
+                singleLine = true, colors = fieldColors, modifier = Modifier.fillMaxWidth(),
+                visualTransformation = PasswordVisualTransformation(),
+            )
+            Spacer(Modifier.height(6.dp))
+            OutlinedButton(
+                onClick = {
+                    GoogleAuth.setClient(idInput.trim(), secretInput.trim())
+                    editClient = false
+                    status = null
+                },
+                enabled = idInput.isNotBlank() && secretInput.isNotBlank(),
+                border = BorderStroke(1.dp, Cy.green),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
+            ) { Text("บันทึก", fontSize = 12.sp) }
+        } else if (dc != null) {
+            Text("1. เปิดหน้านี้ในเบราว์เซอร์ (มือถือหรือคอมก็ได้)", color = Cy.text, fontSize = 12.sp)
+            Text(dc.verificationUrl, color = Cy.cyan, fontSize = 12.sp)
+            Spacer(Modifier.height(6.dp))
+            Text("2. ใส่รหัสนี้แล้วเลือกบัญชีที่เพิ่มเป็น Test user", color = Cy.text, fontSize = 12.sp)
+            Text(
+                dc.userCode, color = Cy.green, fontSize = 26.sp, fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(vertical = 6.dp),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { uriHandler.openUri(dc.verificationUrl) },
+                    border = BorderStroke(1.dp, Cy.green),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
+                ) { Text("เปิดหน้าเว็บ", fontSize = 12.sp) }
+                OutlinedButton(
+                    onClick = { clipboard.setText(AnnotatedString(dc.userCode)) },
+                    border = BorderStroke(1.dp, Cy.green),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
+                ) { Text("คัดลอกรหัส", fontSize = 12.sp) }
+                OutlinedButton(
+                    onClick = { job?.cancel(); busy = false; code = null; status = "ยกเลิกแล้ว" },
+                    border = BorderStroke(1.dp, Cy.dim),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.dim),
+                ) { Text("ยกเลิก", fontSize = 12.sp) }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text("กำลังรอการยืนยัน...", color = Cy.green, fontSize = 11.sp)
+        } else if (busy) {
+            Text("กำลังทำงาน...", color = Cy.green, fontSize = 12.sp)
         } else when (val state = accountState) {
             AccountState.SignedOut, AccountState.Connecting -> {
-                if (environment.ready) {
-                    OutlinedButton(
-                        onClick = { start(doImport = false) },
-                        border = BorderStroke(1.dp, Cy.green),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
-                    ) {
-                        Text("เชื่อมต่อบัญชี Google", fontSize = 12.sp)
-                    }
-                } else {
-                    Text("ติดตั้งและตั้งค่า microG ก่อนเชื่อมต่อบัญชี Google", color = Cy.dim, fontSize = 11.sp)
-                }
+                OutlinedButton(
+                    onClick = { connect() },
+                    border = BorderStroke(1.dp, Cy.green),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
+                ) { Text("เชื่อมต่อบัญชี Google", fontSize = 12.sp) }
             }
 
             is AccountState.SignedIn -> {
                 Text(
                     "เชื่อมต่อแล้ว: " + (state.account.displayName ?: "บัญชี Google"),
-                    color = Cy.green,
-                    fontSize = 13.sp,
+                    color = Cy.green, fontSize = 13.sp,
                 )
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
-                        onClick = { start(doImport = true) },
+                        onClick = { importSubs() },
                         border = BorderStroke(1.dp, Cy.green),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
-                    ) {
-                        Text("นำเข้าช่องที่ติดตาม", fontSize = 12.sp)
-                    }
+                    ) { Text("นำเข้าช่องที่ติดตาม", fontSize = 12.sp) }
                     OutlinedButton(
                         onClick = {
                             accountState = provider.disconnect()
-                            status = "ออกจากระบบในแอปแล้ว (เพิกถอนสิทธิ์เพิ่มเติมได้ที่หน้าบัญชี Google)"
+                            status = "ออกจากระบบแล้ว (เพิกถอนสิทธิ์เพิ่มเติมได้ที่หน้าบัญชี Google)"
                         },
                         border = BorderStroke(1.dp, Cy.dim),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.dim),
-                    ) {
-                        Text("ออกจากระบบ", fontSize = 12.sp)
-                    }
+                    ) { Text("ออกจากระบบ", fontSize = 12.sp) }
                 }
             }
 
@@ -380,15 +401,19 @@ private fun YouTubeAccountSection() {
                     onClick = { accountState = provider.currentState(); status = null },
                     border = BorderStroke(1.dp, Cy.green),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Cy.green),
-                ) {
-                    Text("ลองอีกครั้ง", fontSize = 12.sp)
-                }
+                ) { Text("ลองอีกครั้ง", fontSize = 12.sp) }
             }
         }
 
         status?.let {
             Spacer(Modifier.height(6.dp))
             Text(it, color = Cy.cyan, fontSize = 11.sp)
+        }
+
+        if (!showSetup && !busy && dc == null) {
+            TextButton(onClick = { idInput = GoogleAuth.clientId.value; secretInput = GoogleAuth.clientSecret.value; editClient = true }) {
+                Text("แก้ไข Client ID / Secret", color = Cy.dim, fontSize = 11.sp)
+            }
         }
     }
 }
