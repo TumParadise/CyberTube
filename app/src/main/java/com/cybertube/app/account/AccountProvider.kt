@@ -23,17 +23,16 @@ sealed interface AccountState {
 
 interface AccountProvider {
 
-    fun environment(
-        context: Context,
-    ): MicroGEnvironmentState
+    fun environment(context: Context): MicroGEnvironmentState
 
     fun currentState(): AccountState
 
-    suspend fun connect(
-        context: Context,
-    ): AccountState
+    /** เรียกหลัง Google ให้สิทธิ์แล้ว: ดึงชื่อช่องมาแสดงและจำไว้ในเครื่อง */
+    suspend fun signIn(accessToken: String): AccountState
 
-    suspend fun disconnect(
-        context: Context,
-    ): AccountState
+    /** ดึงรายการช่องที่ติดตามจากบัญชี แล้วเพิ่มเข้า Store (ไม่ซ้ำของเดิม) คืนจำนวนช่องที่เพิ่มใหม่ */
+    suspend fun importSubscriptions(accessToken: String): Result<Int>
+
+    /** ออกจากระบบในแอป (ลบข้อมูลบัญชีที่จำไว้ ไม่ลบช่องที่ติดตามแล้ว) */
+    fun disconnect(): AccountState
 }

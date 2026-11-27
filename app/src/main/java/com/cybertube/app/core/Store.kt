@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import com.cybertube.app.account.CyberTubeAccount
 import com.cybertube.app.ui.Cy
 import com.cybertube.app.ui.Team
 import org.json.JSONArray
@@ -23,6 +24,30 @@ object Store {
 
     /** Max size of the on-disk video cache in MB (takes effect on next app start). */
     val cacheMb = mutableIntStateOf(512)
+
+    /** บัญชี Google ที่เชื่อมไว้ (เก็บเฉพาะชื่อ/รูป ไม่เก็บ token) null = ยังไม่เชื่อม */
+    val account = mutableStateOf<CyberTubeAccount?>(null)
+
+    fun setAccount(a: CyberTubeAccount?) {
+        account.value = a
+        sp.edit().apply {
+            if (a == null) {
+                remove("acc_id"); remove("acc_name"); remove("acc_avatar")
+            } else {
+                putString("acc_id", a.accountName)
+                putString("acc_name", a.displayName ?: "")
+                putString("acc_avatar", a.avatarUrl ?: "")
+            }
+        }.apply()
+    }
+
+    /** เพิ่มช่องที่ยังไม่มีในรายการติดตาม คืนจำนวนที่เพิ่มจริง */
+    fun addSubs(list: List<Sub>): Int {
+        var n = 0
+        list.forEach { s -> if (subs.none { it.url == s.url }) { subs.add(s); n++ } }
+        if (n > 0) saveSubs()
+        return n
+    }
 
     /** Selected look ("ทีม"). The live value is Cy.team; this only persists it. */
     fun setTeam(t: Team) {
@@ -64,6 +89,13 @@ object Store {
         autoplay.value = sp.getBoolean("autoplay", true)
         cacheMb.intValue = sp.getInt("cache_mb", 512)
         Cy.team.value = Team.fromKey(sp.getString("team", null))
+        sp.getString("acc_id", null)?.let { id ->
+            account.value = CyberTubeAccount(
+                accountName = id,
+                displayName = sp.getString("acc_name", "")?.ifEmpty { null },
+                avatarUrl = sp.getString("acc_avatar", "")?.ifEmpty { null },
+            )
+        }
         runCatching {
             val a = JSONArray(sp.getString("subs", "[]"))
             for (i in 0 until a.length()) {

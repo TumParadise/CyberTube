@@ -1,6 +1,7 @@
 package com.cybertube.app.account
 
 import android.app.Activity
+import android.app.PendingIntent
 import android.content.Intent
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
@@ -9,11 +10,12 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
 
 object GoogleAuthorization {
-    private val youtubeReadOnly = Scope("https://<scrubbed-url-domain>/auth/youtube.readonly")
+    // อ่านอย่างเดียว: ดูโปรไฟล์ช่องและรายการที่ติดตาม ไม่แก้ไขอะไรในบัญชี
+    private val youtubeReadOnly = Scope("https://www.googleapis.com/auth/youtube.readonly")
 
     fun authorize(
         activity: Activity,
-        onResolutionRequired: (android.app.PendingIntent) -> Unit,
+        onResolutionRequired: (PendingIntent) -> Unit,
         onAuthorized: (AuthorizationResult) -> Unit,
         onError: (Throwable) -> Unit,
     ) {
@@ -38,8 +40,14 @@ object GoogleAuthorization {
         runCatching {
             Identity.getAuthorizationClient(activity)
                 .getAuthorizationResultFromIntent(data)
-        }.recoverCatching { error ->
-            if (error is ApiException) throw error
-            throw error
         }
+
+    fun describe(e: Throwable): String = when (e) {
+        is ApiException -> when (e.statusCode) {
+            10 -> "ตั้งค่า OAuth ไม่ตรง (รหัส 10): ตรวจ package name และ SHA-1 ใน Google Cloud Console ตามไฟล์ SETUP_GOOGLE.md"
+            12501 -> "ยกเลิกการเชื่อมต่อบัญชี"
+            else -> "Google แจ้งข้อผิดพลาด (รหัส ${e.statusCode})"
+        }
+        else -> e.message ?: "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"
+    }
 }

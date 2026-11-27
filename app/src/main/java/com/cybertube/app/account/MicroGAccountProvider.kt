@@ -1,37 +1,44 @@
 package com.cybertube.app.account
 
 import android.content.Context
+import com.cybertube.app.core.Store
+import com.cybertube.app.core.YouTubeApi
 
 /**
- * AccountProvider implementation for a microG-compatible environment.
- * OAuth authorization will be connected in a later step.
+ * AccountProvider สำหรับเครื่องที่มี Google Services หรือ microG
+ * Access token ไม่ถูกเก็บลงเครื่อง (หมดอายุเร็ว) ขอใหม่ผ่าน GoogleAuthorization ทุกครั้งที่ต้องใช้
  */
 class MicroGAccountProvider : AccountProvider {
 
-    private var state: AccountState = AccountState.SignedOut
+    override fun environment(context: Context): MicroGEnvironmentState =
+        MicroGEnvironment.inspect(context)
 
-    override fun environment(context: Context): MicroGEnvironmentState {
-        return MicroGEnvironment.inspect(context)
-    }
+    override fun currentState(): AccountState =
+        Store.account.value?.let { AccountState.SignedIn(it) } ?: AccountState.SignedOut
 
-    override fun currentState(): AccountState {
-        return state
-    }
+    override suspend fun signIn(accessToken: String): AccountState =
+        runCatching { YouTubeApi.me(accessToken) }
+            .fold(
+                onSuccess = { me ->
+                    val acc = CyberTubeAccount(
+                        accountName = me.id ?: "google-account",
+                        displayName = me.name,
+                        avatarUrl = me.avatar,
+                    )
+                    Store.setAccount(acc)
+                    AccountState.SignedIn(acc)
+                },
+                onFailure = { AccountState.Error(YouTubeApi.describe(it)) },
+            )
 
-    override suspend fun connect(context: Context): AccountState {
-        val env = environment(context)
-
-        state = if (!env.ready) {
-            AccountState.Error("ไม่พบ microG Services ที่พร้อมใช้งาน")
-        } else {
-            AccountState.Error("ระบบ Google authorization ยังไม่ได้เชื่อมต่อ")
+    override suspend fun importSubscriptions(accessToken: String): Result<Int> =
+        runCatching {
+            val list = YouTubeApi.subscriptions(accessToken)
+            Store.addSubs(list)
         }
 
-        return state
-    }
-
-    override suspend fun disconnect(context: Context): AccountState {
-        state = AccountState.SignedOut
-        return state
+    override fun disconnect(): AccountState {
+        Store.setAccount(null)
+        return AccountState.SignedOut
     }
 }

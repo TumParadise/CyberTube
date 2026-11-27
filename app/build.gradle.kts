@@ -13,7 +13,18 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
-        versionName = "0.4.5"
+        versionName = "0.5.0"
+    }
+
+    // คีย์ลงนามคงที่ (debug) : ทุกรอบ build บน GitHub Actions ได้ SHA-1 เดิม
+    // -> อัปเดตแอปทับของเดิมได้ และใช้ OAuth ของ Google ได้ (คีย์นี้เป็นคีย์ debug สาธารณะ ห้ามใช้กับแอปที่ปล่อยจริง)
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("cybertube-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
