@@ -186,6 +186,10 @@ fun SearchScreen(onPlay: (VideoItem) -> Unit) {
                     )
                 }
             }
+        } else if (vm.results.isEmpty() && !vm.loading && vm.error == null &&
+            Store.account.value != null && Store.subs.isNotEmpty()
+        ) {
+            HomeFeed(onPlay)
         } else if (vm.results.isEmpty() && !vm.loading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -214,6 +218,36 @@ fun SearchScreen(onPlay: (VideoItem) -> Unit) {
                 }
             }
         }
+    }
+}
+
+/** หน้าแนะนำ: วิดีโอล่าสุดจากช่องที่ติดตาม (แสดงเฉพาะตอนเชื่อมบัญชี Google) ใช้ฟีด/แคชชุดเดียวกับแท็บติดตาม */
+@Composable
+private fun HomeFeed(onPlay: (VideoItem) -> Unit) {
+    val vm: FeedVM = viewModel()
+    LaunchedEffect(Store.subs.size) { vm.refresh() }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { SectionLabel("// แนะนำ จากช่องที่ติดตาม") }
+                if (vm.loading) {
+                    CircularProgressIndicator(color = Cy.green, strokeWidth = 2.dp, modifier = Modifier.padding(14.dp).size(20.dp))
+                } else {
+                    IconButton(onClick = { vm.refresh(force = true) }) {
+                        Icon(Icons.Filled.Refresh, "รีเฟรช", tint = Cy.green)
+                    }
+                }
+            }
+        }
+        if (vm.failed > 0) {
+            item {
+                Text(
+                    "// โหลดไม่สำเร็จ ${vm.failed} ช่อง กดรีเฟรชเพื่อลองใหม่",
+                    color = Cy.red, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+            }
+        }
+        items(vm.items, key = { it.url }) { v -> VideoRow(v, onClick = { onPlay(v) }) }
     }
 }
 
